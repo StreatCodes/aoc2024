@@ -28,13 +28,20 @@ pub fn main() !void {
     std.mem.sort(i32, numberSet1, {}, comptime std.sort.asc(i32));
     std.mem.sort(i32, numberSet2, {}, comptime std.sort.asc(i32));
 
-    var total: u32 = 0;
+    var total: i32 = 0;
 
     for (0..1000) |j| {
-        const distance = @abs(numberSet1[j] - numberSet2[j]);
-        total += distance;
+        var count: i32 = 0;
+        for (0..1000) |k| {
+            if (numberSet1[j] == numberSet2[k]) {
+                count += 1;
+            }
+        }
 
-        std.debug.print("{d} - {d} = {d}\n", .{ numberSet1[j], numberSet2[j], distance });
+        const amount: i32 = numberSet1[j] * count;
+        total += amount;
+
+        std.debug.print("{d} * {d} = {d}\n", .{ numberSet1[j], count, amount });
     }
 
     std.debug.print("Total: {d}!\n", .{total});
