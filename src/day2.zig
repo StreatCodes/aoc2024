@@ -39,12 +39,20 @@ pub fn main() !void {
             try levels.append(num);
         }
 
-        const safe = isSafeReport(levels.items);
-        if (safe) {
-            std.debug.print("Safe!\n", .{});
-            safeReports += 1;
-        } else {
-            std.debug.print("Unsafe!\n", .{});
+        for (0..levels.items.len) |i| {
+            var partialLevels = try levels.clone();
+            defer partialLevels.deinit();
+
+            _ = partialLevels.orderedRemove(i);
+            const safe = isSafeReport(partialLevels.items);
+
+            if (safe) {
+                std.debug.print("Safe!\n", .{});
+                safeReports += 1;
+                break;
+            } else {
+                std.debug.print("Unsafe!\n", .{});
+            }
         }
     }
 
