@@ -1,18 +1,19 @@
 const std = @import("std");
 const allocator = std.heap.page_allocator;
 
-const Token = enum { multiply, openBracket, closeBracket, number, comma };
+const Token = enum { instruction, openBracket, closeBracket, number, comma };
 
 //Actually built a parser because zig doesn't have regex
 const Tokenizer = struct {
     text: []const u8,
     current: Token,
     index: usize,
+    enabled: bool = true,
     value1: ?i32 = null,
     value2: ?i32 = null,
 
     pub fn init(text: []const u8) Tokenizer {
-        return Tokenizer{ .text = text, .current = Token.multiply, .index = 0 };
+        return Tokenizer{ .text = text, .current = Token.instruction, .index = 0 };
     }
 
     pub fn next(self: *Tokenizer) ?i32 {
@@ -21,16 +22,33 @@ const Tokenizer = struct {
         }
 
         sw: switch (self.current) {
-            Token.multiply => {
+            Token.instruction => {
                 self.value1 = null;
                 self.value2 = null;
-                const count = self.consumeText("mul") orelse {
-                    self.reset();
-                    break :sw;
-                };
 
-                self.index += count;
-                self.current = Token.openBracket;
+                var count = self.consumeText("mul");
+                if (self.enabled and count != null) {
+                    self.index += count.?;
+                    self.current = Token.openBracket;
+                    break :sw;
+                }
+
+                count = self.consumeText("do()");
+                if (count != null) {
+                    self.index += count.?;
+                    self.enabled = true;
+                    break :sw;
+                }
+
+                count = self.consumeText("don't()");
+                if (count != null) {
+                    self.index += count.?;
+                    self.enabled = false;
+                    break :sw;
+                }
+
+                self.reset();
+                break :sw;
             },
             Token.openBracket => {
                 const count = self.consumeText("(") orelse {
@@ -76,7 +94,7 @@ const Tokenizer = struct {
                 };
 
                 self.index += count;
-                self.current = Token.multiply;
+                self.current = Token.instruction;
                 std.debug.print("{d} * {d}\n", .{ self.value1.?, self.value2.? });
                 return self.value1.? * self.value2.?;
             },
@@ -86,7 +104,7 @@ const Tokenizer = struct {
 
     fn reset(self: *Tokenizer) void {
         self.index += 1;
-        self.current = Token.multiply;
+        self.current = Token.instruction;
         self.value1 = null;
         self.value2 = null;
     }
