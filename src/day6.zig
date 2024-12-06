@@ -5,7 +5,87 @@ const Direction = enum { up, right, down, left };
 const Point = struct {
     x: usize,
     y: usize,
+    direction: Direction,
 };
+
+fn historyContainsPosition(history: []Point, position: Point) bool {
+    for (history) |point| {
+        if (point.x == position.x and point.y == position.y and point.direction == position.direction) {
+            return true;
+        }
+    }
+    return false;
+}
+
+fn detectLoop(map: *std.ArrayList([]u8), pos: Point) !bool {
+    var position = pos;
+
+    var history = std.ArrayList(Point).init(allocator);
+    defer history.deinit();
+    outer: while (true) {
+        switch (position.direction) {
+            Direction.up => {
+                if (position.y == 0) break :outer;
+                if (map.items[position.y - 1][position.x] == '#' or map.items[position.y - 1][position.x] == '@') {
+                    position.direction = Direction.right;
+                    if (historyContainsPosition(history.items, position)) {
+                        return true;
+                    }
+                    try history.append(position);
+                    continue :outer;
+                }
+                position.y -= 1;
+            },
+            Direction.right => {
+                if (position.x + 1 >= map.items[position.y].len) break :outer;
+                if (map.items[position.y][position.x + 1] == '#' or map.items[position.y][position.x + 1] == '@') {
+                    position.direction = Direction.down;
+                    if (historyContainsPosition(history.items, position)) {
+                        return true;
+                    }
+                    try history.append(position);
+                    continue :outer;
+                }
+                position.x += 1;
+            },
+            Direction.down => {
+                if (position.y + 1 >= map.items.len) break :outer;
+                if (map.items[position.y + 1][position.x] == '#' or map.items[position.y + 1][position.x] == '@') {
+                    position.direction = Direction.left;
+                    if (historyContainsPosition(history.items, position)) {
+                        return true;
+                    }
+                    try history.append(position);
+                    continue :outer;
+                }
+                position.y += 1;
+            },
+            Direction.left => {
+                if (position.x == 0) break :outer;
+                if (map.items[position.y][position.x - 1] == '#' or map.items[position.y][position.x - 1] == '@') {
+                    position.direction = Direction.up;
+                    if (historyContainsPosition(history.items, position)) {
+                        return true;
+                    }
+                    try history.append(position);
+                    continue :outer;
+                }
+                position.x -= 1;
+            },
+        }
+    }
+    return false;
+}
+
+fn clearMap(map: *std.ArrayList([]u8)) void {
+    for (0..map.items.len) |y| {
+        for (0..map.items[y].len) |x| {
+            if (map.items[y][x] != '#' and map.items[y][x] != '.') {
+                map.items[y][x] = '.';
+            }
+        }
+    }
+}
 
 pub fn main() !void {
     const text = @embedFile("inputs/6.txt");
@@ -21,67 +101,33 @@ pub fn main() !void {
         try map.append(data);
     }
 
-    var direction = Direction.up;
-    var position = Point{ .x = 0, .y = 0 };
+    var startingPosition = Point{ .x = 0, .y = 0, .direction = Direction.up };
+    var position = Point{ .x = 0, .y = 0, .direction = Direction.up };
     for (0..map.items.len) |y| {
         for (0..map.items[y].len) |x| {
             if (map.items[y][x] == '^') {
                 position.x = x;
                 position.y = y;
-                map.items[position.y][position.x] = 'X';
+                startingPosition.x = x;
+                startingPosition.y = y;
+                map.items[position.y][position.x] = '|';
             }
-        }
-    }
-
-    outer: while (true) {
-        switch (direction) {
-            Direction.up => {
-                if (position.y == 0) break :outer;
-                if (map.items[position.y - 1][position.x] == '#') {
-                    direction = Direction.right;
-                    continue :outer;
-                }
-                position.y -= 1;
-                map.items[position.y][position.x] = 'X';
-            },
-            Direction.right => {
-                if (position.x + 1 >= map.items[position.y].len) break :outer;
-                if (map.items[position.y][position.x + 1] == '#') {
-                    direction = Direction.down;
-                    continue :outer;
-                }
-                position.x += 1;
-                map.items[position.y][position.x] = 'X';
-            },
-            Direction.down => {
-                if (position.y + 1 >= map.items.len) break :outer;
-                if (map.items[position.y + 1][position.x] == '#') {
-                    direction = Direction.left;
-                    continue :outer;
-                }
-                position.y += 1;
-                map.items[position.y][position.x] = 'X';
-            },
-            Direction.left => {
-                if (position.x == 0) break :outer;
-                if (map.items[position.y][position.x - 1] == '#') {
-                    direction = Direction.up;
-                    continue :outer;
-                }
-                position.x -= 1;
-                map.items[position.y][position.x] = 'X';
-            },
         }
     }
 
     var count: u32 = 0;
     for (0..map.items.len) |y| {
         for (0..map.items[y].len) |x| {
-            if (map.items[y][x] == 'X') {
+            if (startingPosition.x == x and startingPosition.y == y or map.items[y][x] == '#') {
+                continue;
+            }
+            clearMap(&map);
+            map.items[y][x] = '@';
+            if (try detectLoop(&map, position)) {
                 count += 1;
             }
         }
     }
 
-    std.debug.print("Unique positions {d}!\n", .{count});
+    std.debug.print("Possible loop spots {d}\n", .{count});
 }
