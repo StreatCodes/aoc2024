@@ -27,21 +27,35 @@ fn findAntinodes(antinodes: *std.AutoHashMap(Point, void), antennas: []Point, wi
             const b = antennas[j];
 
             const dist = Point{ .x = @intCast(@abs(b.x - a.x)), .y = @intCast(@abs(b.y - a.y)) };
+            const vector = Point{
+                .x = if (a.x < b.x) -dist.x else dist.x,
+                .y = if (a.y < b.y) -dist.y else dist.y,
+            };
 
-            var result: Point = undefined;
-            var result2: Point = undefined;
+            try antinodes.put(a, {});
 
-            result.x = if (a.x < b.x) a.x - dist.x else a.x + dist.x;
-            result.y = if (a.y < b.y) a.y - dist.y else a.y + dist.y;
+            var iter: i32 = 0;
+            while (true) {
+                iter += 1;
+                const point = Point{ .x = a.x + (iter * vector.x), .y = a.y + (iter * vector.y) };
 
-            result2.x = if (b.x < a.x) b.x - dist.x else b.x + dist.x;
-            result2.y = if (b.y < a.y) b.y - dist.y else b.y + dist.y;
-
-            if (result.x >= 0 and result.x < width and result.y >= 0 and result.y < height) {
-                try antinodes.put(result, {});
+                if (point.x >= 0 and point.x < width and point.y >= 0 and point.y < height) {
+                    try antinodes.put(point, {});
+                } else {
+                    break;
+                }
             }
-            if (result2.x >= 0 and result2.x < width and result2.y >= 0 and result2.y < height) {
-                try antinodes.put(result2, {});
+
+            iter = 0;
+            while (true) {
+                iter += 1;
+                const point = Point{ .x = a.x + (iter * -vector.x), .y = a.y + (iter * -vector.y) };
+
+                if (point.x >= 0 and point.x < width and point.y >= 0 and point.y < height) {
+                    try antinodes.put(point, {});
+                } else {
+                    break;
+                }
             }
         }
     }
@@ -81,6 +95,23 @@ pub fn main() !void {
 
             try solved.append(antenna);
         }
+    }
+
+    //render the map
+    for (map.items, 0..) |line, y| {
+        for (line, 0..) |antenna, x| {
+            if (antenna == '.') {
+                const node = antinodes.get(Point{ .x = @intCast(x), .y = @intCast(y) });
+                if (node != null) {
+                    std.debug.print("{c}", .{'#'});
+                } else {
+                    std.debug.print("{c}", .{'.'});
+                }
+            } else {
+                std.debug.print("{c}", .{antenna});
+            }
+        }
+        std.debug.print("\n", .{});
     }
 
     std.debug.print("Total antinodes: {d}\n", .{antinodes.count()});
