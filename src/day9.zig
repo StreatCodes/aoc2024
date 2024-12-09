@@ -1,6 +1,23 @@
 const std = @import("std");
 const allocator = std.heap.page_allocator;
 
+fn findFileSpace(disk: []i32, fileLength: usize, until: usize) ?usize {
+    var start: ?usize = null;
+    for (0..until) |i| {
+        if (start == null and disk[i] == -1) {
+            start = i;
+        }
+        if (start == null) continue;
+        if (disk[i] != -1) {
+            start = null;
+            continue;
+        }
+        if (i - start.? >= fileLength) return start;
+    }
+
+    return null;
+}
+
 pub fn main() !void {
     const text = @embedFile("inputs/9.txt");
 
@@ -25,30 +42,37 @@ pub fn main() !void {
         isData = !isData;
     }
 
-    var i: usize = 0;
-    var j: usize = disk.items.len - 1;
-    while (i < disk.items.len) {
-        if (disk.items[i] != -1) {
-            i += 1;
-            continue;
+    var fileEnd: ?usize = null;
+    var i = disk.items.len - 1;
+    while (i > 0) : (i -= 1) {
+        if (fileEnd == null and disk.items[i] == -1) continue;
+        if (fileEnd == null and disk.items[i] != -1) {
+            fileEnd = i;
         }
 
-        const swapWith = disk.items[j];
-        if (swapWith == -1) {
-            j -= 1;
-            if (i >= j) break;
-            continue;
+        if (fileEnd != null) {
+            const next = disk.items[i - 1];
+
+            if (next == disk.items[fileEnd.?]) continue;
         }
 
-        disk.items[i] = swapWith;
-        disk.items[j] = -1;
-        i += 1;
-        if (i >= j) break;
+        const fileStart = i;
+        const fileLength = fileEnd.? - fileStart;
+
+        const insertIndex = findFileSpace(disk.items, fileLength, i);
+        if (insertIndex != null) {
+            for (0..fileLength + 1) |j| {
+                disk.items[insertIndex.? + j] = disk.items[fileStart + j];
+                disk.items[fileStart + j] = -1;
+            }
+        }
+
+        fileEnd = null;
     }
 
     var checksum: u64 = 0;
     for (disk.items, 0..) |val, x| {
-        if (val == -1) break;
+        if (val == -1) continue;
         checksum += x * @as(u64, @intCast(val));
     }
 
