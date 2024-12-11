@@ -10,28 +10,26 @@ inline fn asciiToInt(c: u8) u8 {
     return c - '0';
 }
 
-fn calculateTrailheadScore(locations: *std.AutoHashMap(Point, void), map: [][]const u8, x: usize, y: usize, altitude: u32) !void {
+fn calculateTrailheadScore(map: [][]const u8, x: usize, y: usize, altitude: u32) u32 {
     if (altitude == 9) {
-        const point = Point{ .x = x, .y = y };
-        const found = locations.get(point);
-        if (found == null) {
-            try locations.put(point, {});
-        }
-        return;
+        return 1;
     }
 
+    var score: u32 = 0;
     if (y > 0 and asciiToInt(map[y - 1][x]) == altitude + 1) {
-        try calculateTrailheadScore(locations, map, x, y - 1, altitude + 1);
+        score += calculateTrailheadScore(map, x, y - 1, altitude + 1);
     }
     if (y < map.len - 1 and asciiToInt(map[y + 1][x]) == altitude + 1) {
-        try calculateTrailheadScore(locations, map, x, y + 1, altitude + 1);
+        score += calculateTrailheadScore(map, x, y + 1, altitude + 1);
     }
     if (x > 0 and asciiToInt(map[y][x - 1]) == altitude + 1) {
-        try calculateTrailheadScore(locations, map, x - 1, y, altitude + 1);
+        score += calculateTrailheadScore(map, x - 1, y, altitude + 1);
     }
     if (x < map[y].len - 1 and asciiToInt(map[y][x + 1]) == altitude + 1) {
-        try calculateTrailheadScore(locations, map, x + 1, y, altitude + 1);
+        score += calculateTrailheadScore(map, x + 1, y, altitude + 1);
     }
+
+    return score;
 }
 
 pub fn main() !void {
@@ -46,15 +44,12 @@ pub fn main() !void {
         try map.append(line);
     }
 
-    var total: usize = 0;
+    var total: u32 = 0;
     for (0..map.items.len) |y| {
         for (0..map.items[y].len) |x| {
             const c = map.items[y][x];
             if (c == '0') {
-                var locations = std.AutoHashMap(Point, void).init(allocator);
-                defer locations.deinit();
-                try calculateTrailheadScore(&locations, map.items, x, y, 0);
-                const score = locations.count();
+                const score = calculateTrailheadScore(map.items, x, y, 0);
                 total += score;
                 std.debug.print("Found trailhead {d},{d} with score {d}\n", .{ x, y, score });
             }
